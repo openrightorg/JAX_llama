@@ -40,10 +40,28 @@ def get_partition_spec(in_dict, rules):
     assert _unmatched not in result.values(), "Incomplete partition spec."
     return freeze(unflatten_dict(result))
 
-def _get_partition_rules_llama():
+def _get_partition_rules_llama(fsdp: bool=False):
+    if fsdp:
+        return [
+            # embeddings
+            (("transformer", "wte", "embedding"), P("mp", "dp")), 
+            # atention
+            (("attention", "(wq|wk|wv)", "kernel"), P("dp", "mp")), 
+            (("attention", "wo", "kernel"), P("mp", "dp")), 
+            # mlp
+            (("feed_forward", "w1", "kernel"), P("dp", "mp")), 
+            (("feed_forward", "w2", "kernel"), P("mp", "dp")), 
+            (("feed_forward", "w3", "kernel"), P("dp", "mp")), 
+            # layer norms
+            (("attention_norm", "kernel"), P(None)),
+            (("ffn_norm", "kernel"), P(None)),
+            # output head
+            (("transformer", "ln_f", "kernel"), P(None)), 
+            (("lm_head", "kernel"), P("dp", "mp")), 
+        ]
     return [
         # embeddings
-        (("transformer", "wte", "embedding"), P(None, "mp")), 
+        (("transformer", "wte", "embedding"), P("mp", None)), 
         # atention
         (("attention", "(wq|wk|wv)", "kernel"), P(None, "mp")), 
         (("attention", "wo", "kernel"), P("mp", None)), 
@@ -59,8 +77,8 @@ def _get_partition_rules_llama():
         (("lm_head", "kernel"), P(None, "mp")), 
     ]
 
-def get_llama_param_partition_spec(params: PyTree) -> PyTree:
-    return get_partition_spec(params, _get_partition_rules_llama())
+def get_llama_param_partition_spec(params: PyTree, fsdp: bool=False) -> PyTree:
+    return get_partition_spec(params, _get_partition_rules_llama(fsdp=fsdp))
 
 def global_mesh_defined():
     """Checks if global xmap/pjit mesh resource environment is defined."""

@@ -19,7 +19,7 @@ def load(ckpt_dir: str, tokenizer_path: str, **model_kwargs) -> LLaMA:
     with jax.default_device(jax.devices('cpu')[0]):
         jax_params = freeze(jax.tree_map(lambda x: jnp.asarray(x), jax_params))
     # shard params
-    param_spec = freeze(get_llama_param_partition_spec(unfreeze(jax_params)))
+    param_spec = freeze(get_llama_param_partition_spec(unfreeze(jax_params), fsdp=False))
     jax_params = jax.tree_util.tree_map(lambda param, spec: jax.device_put(param, NamedSharding(mesh, spec)), jax_params, param_spec)
 
     # build model
