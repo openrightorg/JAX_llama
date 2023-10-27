@@ -34,7 +34,7 @@ def config_from_params(args: ModelArgs) -> LLaMAConfig:
     )
 
 def convert_llama_weights(ckpt_dir: str, tokenizer: LLaMATokenizer, max_seq_len: int=2048, verbose: bool=False) -> Tuple[PyTree[np.ndarray], LLaMAConfig]:
-    ckpt_paths = sorted(Path(ckpt_dir).glob("*.pth"))
+    ckpt_paths = sorted(list(Path(ckpt_dir).glob('*.pth')) + list(Path(ckpt_dir).glob('*.pt')))
     ckpts = {}
     for i, ckpt_path in enumerate(ckpt_paths):
         if verbose:
@@ -42,7 +42,8 @@ def convert_llama_weights(ckpt_dir: str, tokenizer: LLaMATokenizer, max_seq_len:
         checkpoint = torch.load(ckpt_path, map_location="cpu")
         if verbose:
             print('Loaded.')
-        ckpts[int(ckpt_path.name.split('.', maxsplit=2)[1])] = checkpoint
+        if str(ckpt_path).count('.') > 1: i = int(ckpt_path.name.split('.', maxsplit=2)[1])
+        ckpts[i] = checkpoint['model'] if 'model' in checkpoint else checkpoint
     ckpts = [ckpts[i] for i in sorted(list(ckpts.keys()))]
     with open(Path(ckpt_dir) / "params.json", "r") as f:
         params = json.loads(f.read())
